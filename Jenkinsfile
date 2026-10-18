@@ -8,7 +8,7 @@ node {
     }
 
     stage('Clone Repo') {
-        echo 'Cloning the correct repository'
+        echo 'Cloning repository'
 
         git(
             branch: 'main',
@@ -17,7 +17,7 @@ node {
     }
 
     stage('Deploy to EC2') {
-        echo 'Deploying Next.js app to EC2'
+        echo 'Deploying Next.js app'
 
         sh """
             set -e
@@ -28,6 +28,8 @@ node {
             rsync -av --delete \
                 --exclude='.git' \
                 --exclude='node_modules' \
+                --exclude='.next' \
+                --exclude='app.log' \
                 ./ ${appDir}/
 
             cd ${appDir}
@@ -38,10 +40,13 @@ node {
             npm ci
             npm run build
 
-            sudo fuser -k 3000/tcp || true
+            if ! command -v pm2 >/dev/null 2>&1; then
+                sudo npm install -g pm2
+            fi
 
-            nohup npm run start -- --hostname 0.0.0.0 \
-                > ${appDir}/app.log 2>&1 < /dev/null &
+            pm2 delete nextjs-app || true
+            pm2 start npm --name nextjs-app -- run start -- --hostname 0.0.0.0
+            pm2 save
 
             sleep 5
             curl -f http://localhost:3000
