@@ -44,12 +44,18 @@ node {
                 sudo npm install -g pm2
             fi
 
-            pm2 delete nextjs-app || true
+            pm2 describe nextjs-app >/dev/null 2>&1 && pm2 delete nextjs-app || true
+
             pm2 start npm --name nextjs-app -- run start -- --hostname 0.0.0.0
+
             pm2 save
 
             sleep 5
-            curl -f http://localhost:3000
+
+            pm2 status
+
+            curl --retry 5 --retry-delay 2 --retry-connrefused \
+                -f http://127.0.0.1:3000/
         """
     }
 }
